@@ -3,8 +3,8 @@ import cv2
 import numpy as np
 
 # Ruta al archivo .bag
-# bag_file = "/home/exebena/Documentos/Doctorado/dockerRobotic/rosbag/rosbag2_2025_07_19-15_03_24_0.db3"
-bag_file = "rosbag/20250721_123505.bag"
+
+bag_file = "../rosbag/20250723_123323.bag"
 
 # Crear un pipeline
 pipeline = rs.pipeline()
@@ -38,7 +38,7 @@ try:
         color_image = np.asanyarray(color_frame.get_data())
 
         # Mostrar imágenes
-        cv2.imshow("Color", color_image)
+        cv2.imshow("Color", cv2.cvtColor(color_image, cv2.COLOR_RGB2BGR))
         cv2.imshow("Depth", depth_image)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
