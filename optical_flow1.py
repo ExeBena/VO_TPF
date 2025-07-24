@@ -94,7 +94,7 @@ while True:
         if not (0 <= u_int < width and 0 <= v_int < height):
             continue
         # depth = frameDepth_alineado.get_distance(v_int,u_int)
-        depth = frameDepth[v_int, u_int] / 10020250721_1235290.0  # Convert to meters
+        depth = frameDepth[v_int, u_int] / 1000.0  # Convert to meters
         X,Y,Z = rs.rs2_deproject_pixel_to_point(intrinsics, [u_int, v_int], depth)
         points3D.append([X, Y, Z])
         points2D.append([c, d])
