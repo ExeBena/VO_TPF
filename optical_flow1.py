@@ -90,14 +90,14 @@ while True:
         frameColor = cv2.circle(frameColor, (int(a), int(b)), 5, (0, 0, 255), -1)
 
         # vectors.append([float(a), float(b), float(frameDepth[int(b),int(a)]/1000.)])
-        u_int, v_int = int(a), int(b)
+        u_int, v_int = int(c), int(d)
         if not (0 <= u_int < width and 0 <= v_int < height):
             continue
-        # depth = frameDepth_alineado.get_distance(v_int,u_int)
-        depth = frameDepth[v_int, u_int] / 1000.0  # Convert to meters
+        depth = frameDepth_alineado.get_distance(u_int,v_int)
+        # depth = frameDepth[v_int, u_int] / 1000.0  # Convert to meters
         X,Y,Z = rs.rs2_deproject_pixel_to_point(intrinsics, [u_int, v_int], depth)
         points3D.append([X, Y, Z])
-        points2D.append([c, d])
+        points2D.append([a, b])
         # img_depth = cv2.add(frameDepth, cv2.circle(frameDepth, (int(a), int(b)), 5, (2**16-1,2**16-1 ,2**16-1), -1))
 
     points3D = np.array(points3D, dtype=np.float32)
@@ -108,9 +108,9 @@ while True:
         validos = (points2D[:, 0] >= 0) & (points2D[:, 1] >= 0)
     
     else:
-        frameGrayPrev = cv2.cvtColor(np.asanyarray(frame.get_color_frame().get_data()), cv2.COLOR_BGR2GRAY)
+        frameGrayPrev = cv2.cvtColor(np.asanyarray(frameColor_alineado.get_data()), cv2.COLOR_BGR2GRAY)
         cornersPrev = cv2.goodFeaturesToTrack(frameGrayPrev, mask = None, **shiTomasiCorrnerParams)
-        mask = np.zeros_like(np.asanyarray(frame.get_color_frame().get_data()))
+        mask = np.zeros_like(np.asanyarray(frameColor_alineado.get_data()))
         continue
     # points3D_copy = points3D.copy()
     # points2D_copy = points2D.copy()
