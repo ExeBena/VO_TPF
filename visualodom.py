@@ -2,7 +2,7 @@ import pyrealsense2 as rs
 import cv2
 import numpy as np
 
-bag_file = "../rosbag/20250723_124208.bag"
+bag_file = "../rosbag/20250723_120139.bag"
 
 # Crear un pipeline
 pipeline = rs.pipeline()
@@ -49,13 +49,14 @@ j = 0
 traslacion = np.zeros((3, 1))  # Initialize translation vector
 while True:
     j+=1
-    # Wait for a new frame
+    # NUEVO FRAME
     try:
         frame = pipeline.wait_for_frames()
     except RuntimeError:
         print("Fin del stream")
         break
 
+    # ALIENACION DE FRAME
     aligned_frames = align.process(frame)
 
     frameColor_alineado = aligned_frames.get_color_frame()
@@ -73,34 +74,29 @@ while True:
     # Calculate optical flow
     cornersCur, status, error = cv2.calcOpticalFlowPyrLK(frameGrayPrev, frameGrayCur, cornersPrev, None, **lucasKanadeParams)
 
+
+    # Si hay menos de 20 puntos, recalcular cornersPrev
     if cornersCur.shape[0]<20:        
         mascara = np.full(frameGrayPrev.shape, 255, dtype=np.uint8)
         cornersAux = cornersPrev.copy()
         for pt in cornersPrev.reshape(-1, 2):
             cv2.circle(mascara, (int(pt[0]),int(pt[1])), 5, 0, -1)
 
-        # clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-        # img_to_features = clahe.apply(frameGrayPrev)
-        img_to_features = cv2.equalizeHist(frameGrayPrev)
-        # img_to_features = frameGrayPrev.copy()
+        # img_to_features = cv2.equalizeHist(frameGrayPrev)
+        img_to_features = frameGrayPrev.copy()
+        
         params = shiTomasiCorrnerParams.copy()
         cornersPrev = cv2.goodFeaturesToTrack(img_to_features, mask=mascara, **params)
+
+        # si aún no se encuentran corners, reduzco qualityLevel
         while cornersPrev is None:
-            params['qualityLevel'] = shiTomasiCorrnerParams['qualityLevel'] * 0.3
+            params['qualityLevel'] *= 0.9
             cornersPrev = cv2.goodFeaturesToTrack(img_to_features, mask=mascara, **params)
+
         cornersPrev = np.append(cornersAux,cornersPrev,axis=0)
         cornersCur, status, error = cv2.calcOpticalFlowPyrLK(frameGrayPrev, frameGrayCur, cornersPrev, None, **lucasKanadeParams)
-        # cornersCur = cornersCur.reshape(-1, 1, 2)
-        
-    #     validos = (points2D[:, 0] >= 0) & (points2D[:, 1] >= 0)
-    
-    # else:
-    #     frameGrayPrev = cv2.cvtColor(np.asanyarray(frameColor_alineado.get_data()), cv2.COLOR_BGR2GRAY)
-    #     cornersPrev = cv2.goodFeaturesToTrack(frameGrayPrev, mask = None, **shiTomasiCorrnerParams)
-    #     mask = np.zeros_like(np.asanyarray(frameColor_alineado.get_data()))
-    #     continue
-
-
+ 
+        frameGrayPrev = frameGrayCur.copy()
     # Select good points
     if cornersCur is not None:
         goodNew = cornersCur[status.flatten() == 1]
@@ -109,8 +105,8 @@ while True:
     vectors = []#np.array([])
     points3D = []
     points2D = []
-    # Draw the tracks
-    # mask = np.zeros_like(np.asanyarray(frameColor))
+ 
+    # Dibujo los puntos y armo los vectores 3D y 2D
     for i, (new, old) in enumerate(zip(goodNew, goodOld)):
         a, b = new.ravel()
         c, d = old.ravel()
@@ -121,45 +117,32 @@ while True:
         u_int, v_int = int(c), int(d)
         if not (0 <= u_int < width and 0 <= v_int < height):
             continue
-        # depth = frameDepth_alineado.get_distance(v_int,u_int)
-        depth = frameDepth[v_int, u_int] / 1000.0  # Convert to meters
+        depth = frameDepth_alineado.get_distance(u_int,v_int)
+        # depth = frameDepth[v_int-2:v_int+2, u_int-2:u_int+2] / 1000.0  # Convert to meters
+
+
         X,Y,Z = rs.rs2_deproject_pixel_to_point(intrinsics, [u_int, v_int], depth)
         points3D.append([X, Y, Z])
         points2D.append([a, b])
-        # img_depth = cv2.add(frameDepth, cv2.circle(frameDepth, (int(a), int(b)), 5, (2**16-1,2**16-1 ,2**16-1), -1))
+
 
     points3D = np.array(points3D, dtype=np.float32)
-    # points2D = goodNew.reshape(-1, 2).astype(np.float32)
     points2D = np.array(points2D, dtype=np.float32)
 
-    # if points2D.shape[0]<20 and points3D.shape[0]<20:        
+    # Me aseguro de quedarme con los puntos positivos       
     validos = (points2D[:, 0] >= 0) & (points2D[:, 1] >= 0)
-    
-    # else:
-    #     frameGrayPrev = cv2.cvtColor(np.asanyarray(frameColor_alineado.get_data()), cv2.COLOR_BGR2GRAY)
-    #     cornersPrev = cv2.goodFeaturesToTrack(frameGrayPrev, mask = None, **shiTomasiCorrnerParams)
-    #     mask = np.zeros_like(np.asanyarray(frameColor_alineado.get_data()))
-    #     continue
-    # points3D_copy = points3D.copy()
-    # points2D_copy = points2D.copy()
-    # points2D_copy = points2D[validos]
-    # points3D_copy = points3D[validos]
-
-    # points2D = points2D_copy
-    # points3D = points3D_copy
-
+  
+    # Muestro las imagenes
     img = cv2.add(cv2.cvtColor(frameColor, cv2.COLOR_RGB2BGR), mask)
-
-       
-    # depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(frameDepth, alpha=0.03), cv2.COLORMAP_JET)
-    # blended = cv2.addWeighted(frameColor, 0.6, depth_colormap, 0.4, 0)
-    # cv2.imshow('Blended', blended)
+    cv2.imshow('Optical Flow', img)
+    cv2.imshow('Depth Matrix', frameDepth)
 
     # Update previous frame and corners
     frameGrayPrev = frameGrayCur.copy()
     cornersPrev = goodNew.reshape(-1, 1, 2)
 
-    # Solve PnP para obtener pose
+    # Solve PnP para obtener pose, compruebo que haya mas de 4 puntos necesarios para
+    # Ransac
     if len(points3D) >= 4 and len(points2D) >= 4:
         points3D = np.array(points3D, dtype=np.float32).reshape(-1, 3)
         points2D = np.array(points2D, dtype=np.float32).reshape(-1, 2)
@@ -182,16 +165,6 @@ while True:
             print("No valid pose found.")
     else:
         continue
-
-    # print(rvec)
-
-    # print("FRAME {}".format(j))
-
-
-    # Show the image
-    cv2.imshow('Optical Flow', img)
-    cv2.imshow('Depth Matrix', frameDepth)
-
 
     if cv2.waitKey(30) & 0xFF == ord('q'):
         pipeline.stop()
