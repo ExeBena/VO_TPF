@@ -177,8 +177,8 @@ while True:
                 R_prev = R
                 t_prev = tvec.reshape(3, 1)
                 
-                print("Transformacion homogenea")
-                print(T_old)
+                # print("Transformacion homogenea")
+                # print(T_old)
             
             # else:
             #     print("Pose no válida, rotación o traslación demasiado grandes.")
@@ -199,5 +199,8 @@ while True:
 
 print("Matriz de transformacion homogenea total")
 print(T_old)
+print(f"Rotacion sobre el eje Y: {(np.arcsin(T_old[0, 2])*180/np.pi):.2f}°")
+print(f"Desplazamiento en X:{T_old[0, 3]:.2f}, en Y:{T_old[1, 3]:.2f}, en Z:{T_old[2, 3]:.2f}")
+print("Tener en cuenta que el eje Y tiene dirección hacia abajo y la transforamción es del mundo respecto a la cámara.")
 
 cv2.destroyAllWindows()
